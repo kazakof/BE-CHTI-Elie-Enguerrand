@@ -25,12 +25,12 @@ CLOCK_Configure();
 
 //============================================================================	
 	
-	
-while	(1)
-	{
-		for (int i=0; i<64;i++){
+	for (int i=0; i<64;i++){
 			a[i]=DFTModuleAuCarre(&LeSignal[0],i);
 	}
-}
+while	(1)
+	{
+	}
+
 }
 

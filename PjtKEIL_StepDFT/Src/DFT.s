@@ -25,29 +25,60 @@
 	area    moncode,code,readonly
 ; écrire le code ici
 
+
+	
+	
 DFTModuleAuCarre proc
-	
 	push {r4-r11,lr}
-	ldr r6,=TabCos ;on load l'adresse du premier element de tabcos
-	mov r2,#0      ;on crée l'index 
-	mov r3,#63     ;on crée M-1
-	mov r5,#0      ; on initialise la somme de cos 
-boucle
-	ldrsh r4,[r0,r2,lsl#1] ;on load l'element du tableau signal d'index r2
-	;on va calculer le modulo 64 avec le masque
-	mul r8,r2,r1
-	and r8,r3
-	ldrsh r7,[r6,r8,lsl#1];on load l'element de tabcos d'indice n*k%64
-	mul r7,r4
-	add r5,r7 ; on fait somme+=x[i]*tabcos(nk%64)
-	add r2,#1
-	cmp r2,r3
-	bne boucle
+	mov r4, #0 ; compteur
+	mov r5, #0 ; total Re
+	mov r10, #0 ; total Im
 	
-	mov r0,r5 ;on met le resultat de la somme sur la sortie r0
+	mov r11, r0 ; on copie l'adresse du premier élement du signal dans r11 pour le récupérer après la première somme (cos)
+	
+	ldr r2, =TabCos ; on load TabCos
+	bl Somme ; on lance la fonction qui fait la somme pour la partie Cos
+	add r5, r0 ; on stock dans r5 le resultat de la somme des Re 
+	
+	mov r0, r11 ;on remet l'adresse du premier element du signal dans r0
+	ldr r2, =TabSin ; on load les Sin
+	bl Somme ; on lance la fonction qui fait la somme pour la partie Sin
+	add r10, r0 ; on stock dans r10 le resultat de la somme des Im
+	
+	;passage au carré
+	mov r4,#0 ;registre low
+	mov r3,#0 ;registre high
+	smlal r4,r3,r5,r5 ; multiplication et accumulation pour Re au carré
+	smlal r4,r3,r10,r10 ; multiplication et accumulation pour Im carré + Re carré
+	mov r0,r3 ; on renvoie les 32bits de poids forts stockés dans le registre high (et on tronque les bits faible du registre low) via le registre de retour de fonction r0
+	
 	pop {r4-r11,lr}
 	bx lr
+	endp
+		
+Somme proc; r0 = signal, r1 = k, r2 = TabCos ou TabSin
+	push {r4-r11,lr}
+	mov r4, #0 ;compteur
+	mov r5, #0 ;total
 	
+boucle
+
+	mul r7, r1, r4 ; calcul de p
+	and r7, #63 ; modulo avec le maque
+	
+	ldrsh r3, [r2,r7, lsl #1] ; Tab, r3 est au formt 1.15
+	ldrsh r6, [r0,r4, lsl #1] ; TabCos ou TabSin est au format 4.12
+	
+	mul r3, r6				  ; par multiplication =>5.27
+	add r5, r3				  ; on incrémente le total
+	
+	add r4, #1				  ; on incrémente le compteur
+	cmp r4,#64				  ; verification boucle
+	bne boucle
+	
+	mov r0, r5  ; on met le total sur le registre de sortie de fonction r0
+	pop {r4-r11,lr}
+	bx lr
 	endp
 	
 
